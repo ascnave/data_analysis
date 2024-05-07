@@ -1,0 +1,100 @@
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.optimize import curve_fit
+from Analyse_data import Fit_poly_spectrum, Ar2_N_int
+from function import gaussian_rectangular_convolution
+path= "M:\\PD_YAG-Dye_2.61\\Argon_excimer_CRDS\\Analysed_data\\"
+
+markers = ['o','v','^','<','>','x','+','s','p','h','*','1','2','3','4','8','o','v']
+
+
+Xpos_, N_int_, N_int_std_ = Ar2_N_int(Ypos=85.4, cross_section=3.3E-16, path_=path+"Radial_Aint_Ar2_3slm_Ar.txt")
+Xpos_p, N_int_p, N_int_std_p = Ar2_N_int(Ypos=85.4, cross_section=3.3E-16, path_=path+"Radial_Aint_Ar2__3slm_Ar_with_purge.txt")
+
+
+""" Make figure """
+fs=24
+cm = 1/2.54
+matplotlib.rcParams["font.family"] = "Times New Roman"
+matplotlib.rcParams["mathtext.fontset"] = "cm"
+
+fig, ax = plt.subplots(figsize=(21*cm,16*cm))
+
+Xpos_ = [x-55.4 for x in Xpos_]
+N_int_ = [x/1E10-0.25 for x in N_int_]
+N_int_std_ = [x/1E10 for x in N_int_std_]
+
+Xpos_p = [x-55.4 for x in Xpos_p]
+N_int_p = [x/1E10-0.25 for x in N_int_p]
+N_int_std_p = [x/1E10 for x in N_int_std_p]
+
+
+Xpos_n = []
+N_int_n = []
+N_int_std_n = []
+for i in range(0, len(Xpos_)):
+    if Xpos_[i] in Xpos_p:
+        Xpos_n.append(Xpos_[i])
+        N_int_n.append(N_int_[i])
+        N_int_std_n.append(N_int_std_[i])
+
+
+
+"""popt, pcov =  curve_fit(gaussian_rectangular_convolution, Xpos_, N_int_, p0=[2.1E10, -0.8, 0.8])
+print(popt)
+
+Xpos_fit = np.arange(Xpos_[0], Xpos_[len(Xpos_)-1], 0.01)
+y_conv = gaussian_rectangular_convolution(x_=Xpos_fit, amp_rect=popt[0], start_rect=popt[1], end_rect=popt[2])
+print(popt)"""
+
+ax.errorbar(Xpos_p, N_int_p, yerr=N_int_std_p, fmt='o', capsize=5, color='black', label='with purge', zorder=2)
+#ax.errorbar(Xpos_, N_int_, yerr=N_int_std_, fmt='o', capsize=5, color='red', label='without purge', zorder=2)
+ax.errorbar(Xpos_n, N_int_n, yerr=N_int_std_n, fmt='s', capsize=5, color='cyan', label='without purge', zorder=2)
+#ax.plot(Xpos_fit, y_conv, '-r', label='Fit Rectangular/Gaussian Convolution', zorder=3)
+
+
+for axis in ['top','bottom','left','right']:
+    ax.spines[axis].set_linewidth(2)
+
+ax.set_xlabel("x [mm]", fontsize=fs)
+ax.set_ylabel("N$_{int}$ [10$^{10}$ mol . cm$^{-2}$]", fontsize=fs)
+
+ax.set_xlim(-1.7, 1.7)
+ax.set_xticks([-1.6,-1.2,-0.8,-0.4,0,0.4,0.8,1.2,1.6], fontsize=fs)
+ax.set_xticks([-1.4,-1,-0.6,-0.2,0.2,0.6,1,1.4], minor=True)
+
+ax.set_ylim(-0.05, 2.8)
+ax.set_yticks([0,0.5,1,1.5,2,2.5], fontsize=fs)
+#ax.set_yticks((0.5,1.5,2.5), minor=True)
+
+ax.tick_params(axis='both', which='major', labelsize=fs, direction="in", length=4, width=2, left=True, right=True, bottom=True, top=True)
+ax.tick_params(axis='both', which='minor', labelsize=fs, direction="in", length=2, width=2, left=True, right=True, bottom=True, top=True)
+
+
+""" Add text and brackets for figures """
+ax.text(-0.4, 2.45, 'd = 1.4 mm',  fontsize=fs)
+
+xlim=[-0.7, 0.7]
+ylim=[2.3,2.4]
+ymed=(ylim[0]+ylim[1])/2
+
+ax.plot([xlim[0], xlim[1]], [ymed, ymed],  '-k', linewidth=2.0)
+for tick in xlim:
+    ax.plot([tick, tick], [ylim[0], ylim[1]], '-k', linewidth=2.0)
+
+
+
+ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), fontsize=fs, ncol=2, frameon=False)
+#print(0.2719/2)
+#plt.show()
+#plt.savefig('M:\\PD_YAG-Dye_2.61\\Argon_excimer_CRDS\\Publication_1\\figures\\figure3.eps', format='eps')
+
+
+save_to_path = "C:\\Users\\Nave\Desktop\\Nave\\"
+
+with open(save_to_path+"fig3.txt", 'w') as f:
+    for i in range(0,len(Xpos_p)):
+        f.write("{:6.2f}".format(Xpos_p[i]) + "\t" + "{:14.2e}".format(N_int_p[i]*1E10) + "\t" + "{:14.2e}".format(N_int_std_p[i]*1E10)
+                + "\t" + "{:14.2e}".format(N_int_n[i]*1E10) + "\t" + "{:14.2e}".format(N_int_std_n[i]*1E10) + '\n')
+
