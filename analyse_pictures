@@ -1,0 +1,46 @@
+import matplotlib
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+import numpy as np
+path = "M:\\PD_YAG-Dye_2.61\\Argon_excimer_CRDS\\Philipp_pictures\\KP_From_Below_Comparison_per_600images\\"
+
+
+
+# Figure parameter
+fs=24
+cm = 1/2.54
+pixel_to_mm = (1.6/117)
+matplotlib.rcParams["font.family"] = "Times New Roman"
+matplotlib.rcParams["mathtext.fontset"] = "cm"
+
+"""files_ = ["1slm_Mean_Image__Mean_1368.jpg","2slm_Mean_Image__Mean_1594.jpg","3slm_Mean_Image__Mean_1778.jpg","4slm_Mean_Image__Mean_1872.jpg","5slm_Mean_Image__Mean_1924.jpg"]
+
+files_ = ["MAX\\1slm_Max_Image__Mean_3531.jpg","MAX\\2slm_Max_Image__Mean_7276.jpg","MAX\\3slm_Max_Image__Mean_8012.jpg",
+          "MAX\\4slm_Max_Image__Mean_7122.jpg","MAX\\5slm_Max_Image__Mean_6913.jpg"]
+
+files_ = ["MIN\\1slm_Min_Image__Mean_439.jpg","MIN\\2slm_Min_Image__Mean_382.jpg","MIN\\3slm_Min_Image__Mean_412.jpg",
+          "MIN\\4slm_Min_Image__Mean_450.jpg","MIN\\5slm_Min_Image__Mean_455.jpg"]
+
+labels_ = ["1 slm","2 slm","3 slm","4 slm","5 slm"]
+"""
+
+for j in range(0, len(files_)):
+    image =  mpimg.imread(path+files_[j])
+
+
+    sel_image = image[200:1280,50:1330,2]
+
+#+ image[200:1280,50:1330,1] + image[200:1280,50:1330,2]
+
+
+    y_ = []
+    for i in range(0, len(sel_image[0,:])):
+        y_.append(np.sum(sel_image[:,i]))
+
+    x_ = np.arange(0,len(sel_image[0,:]))
+    plt.plot(x_,y_, label=labels_[j])
+
+#fig, ax = plt.subplots(figsize=(21*cm,16*cm))
+#pcm = ax.imshow(sel_image)
+plt.legend()
+plt.show()
