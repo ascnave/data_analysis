@@ -1,0 +1,46 @@
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+from numpy import matlib
+from function import Gaussian
+
+
+
+x_ = np.arange(-0.5, 0.5, 0.001)
+y_ = np.arange(-0.5, 0.5, 0.001)
+x_, y_ = np.meshgrid(x_, y_)
+r_ = np.sqrt(x_**2+y_**2)
+
+
+z_ = Gaussian(x_=r_, x0=0.08, w=0.2)
+
+fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+
+surf = ax.plot_surface(x_, y_, z_, cmap="jet",
+                       linewidth=0, antialiased=False)
+
+ax.set_xlabel('X')
+ax.set_ylabel('Y')
+ax.set_zlabel('Z')
+
+#plt.plot(r_, z_)
+plt.show()
+
+"""theta = np.linspace(0,2*np.pi,600)
+
+x_theta = x_*np.cos(theta)
+z_theta = x_*np.sin(theta)
+
+y_surf = np.matlib.repmat(y_,600,1)
+
+#plt.plot(z_theta , y_surf[10])
+
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+
+ax.plot_surface(x_theta, z_theta, y_surf, cmap="jet", linewidth=10)
+
+
+
+plt.show()"""
+
