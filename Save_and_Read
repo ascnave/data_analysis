@@ -1,0 +1,311 @@
+import datetime
+import numpy as np
+from pathlib import Path
+import ast, time, sys, re, os, shutil
+
+""" Return two lists of folder+file for Ar2 and Ar spectra between folder_1, file_1 and folder_2, file_2 loking for days between folder_1 and folder_2 """
+def Files_list(path_, folder_1, file_1, folder_2, file_2):
+    if folder_1 == folder_2:
+        path = path_ + '\\' + folder_1
+        files_ = [folder_1 + '\\' + file for file in os.listdir(path) if (file.endswith(".txt") and int(file[0:6]) >= int(file_1[0:6]) and int(file[0:6]) <= int(file_2[0:6]))]
+
+    elif (datetime.datetime.strptime(folder_1, '%Y%m%d')) < datetime.datetime.strptime(folder_2, '%Y%m%d'):
+        day_diff = (datetime.datetime.strptime(folder_2, '%Y%m%d') - datetime.datetime.strptime(folder_1, '%Y%m%d')).days
+        folders_ = []
+
+        for i in range(1, day_diff):
+            date = datetime.datetime.strptime(folder_1, '%Y%m%d') + datetime.timedelta(days=i)
+            folder = str(date)[0:10].replace('-', '')
+
+            if os.path.isdir(path_ + '\\' + folder):
+                folders_.append(folder)
+            else:
+                print('Carefule folder '+ folder + ' was not found in given path')
+
+        files_ = [folder_1 + '\\' + file for file in os.listdir(path_ + '\\' + folder_1) if (file.endswith(".txt") and int(file[0:6]) >= int(file_1[0:6]))]
+
+        for i in range(0, len(folders_)):
+            files = [folders_[i] + '\\' + file for file in os.listdir(path_ + '\\' + folders_[i]) if (file.endswith(".txt"))]
+            files_ += files
+
+        files_ += [folder_2 + '\\' + file for file in os.listdir(path_ + '\\' + folder_2) if (file.endswith(".txt") and int(file[0:6]) <= int(file_2[0:6]))]
+
+    else:
+        sys.exit(folder_1 + ' need to be before ' + folder_2)
+
+    return(files_)
+
+
+def Read_data(path_, file):
+    path_file_name = path_ + '\\' + file
+
+    with open(path_file_name, 'r') as f:
+        data = f.readlines()
+
+    exp_cond = data[0].split(',')
+    try:
+        Xpos_str = [x for x in exp_cond if 'X_position' in x][0]
+        Xpos = float(re.findall("\d+.\d+|\d+", Xpos_str)[0])
+    except:
+        Xpos = 0
+        print('Experimental condition do not contain X_position')
+
+    try:
+        Ypos_str = [x for x in exp_cond if 'Y_position' in x][0]
+        Ypos = float(re.findall("\d+.\d+|\d+", Ypos_str)[0])
+    except:
+        Ypos = 0
+        print('Experimental condition do not contain Y_position')
+
+    #try:
+    #    flow_O2_str = [x for x in exp_cond if 'flow_O2' in x][0]
+    #    flow_O2 = float(re.findall("\d+.\d+|\d+", flow_O2_str)[1])
+    #except:
+    #    flow_O2 = 0
+    #    print('Experimental condition do not contain Oxygen flow')
+
+
+    data_ = ast.literal_eval(data[1])
+    x = [data_[0]]
+    tau = [data_[1]]
+    std = [data_[2]]
+    tau_ = [data_[3]]
+    Plasma_Pk_Pk = [data_[4]]
+
+    i = 2
+    while i < len(data):
+        data_ = ast.literal_eval(data[i])
+        x.append(data_[0])
+        tau.append(data_[1])
+        std.append(data_[2])
+        tau_.append(data_[3])
+        Plasma_Pk_Pk.append(data_[4])
+        i += 1
+
+    return (Xpos, Ypos, x, tau, std, tau_, Plasma_Pk_Pk)
+
+""" Check if file has doubled point and remove the oldest doubled data points and create a new data array without doubled points
+Overwrite data file if the number of data points of the created array is the expected one """
+
+def Remove_double_value_in_file(path, files_, nb_pts_files_to_be_saved):
+    for file in files_:
+        # Read file
+        path_file_name = path + '\\' + file
+        with open(path_file_name, 'r') as f:
+            data = f.readlines()
+
+        header_ = data[0]
+
+        data_1 = ast.literal_eval(data[1])
+        x_ = [data_1[0]]
+        data_2 = ast.literal_eval(data[2])
+        x_.append(data_2[0])
+        data_ = [data_1,data_2]
+
+        i = 3
+        while i < len(data):
+            data_.append(ast.literal_eval(data[i]))
+            x_.append(data_[i-1][0])
+            i += 1
+
+
+        indices = []
+        for j in range(0, len(x_)):
+            if 515 < x_[j] < 516.7:
+                indices.append(j)
+
+            ind_ = np.where(np.array(x_) == x_[j])[0]
+            if len(ind_) > 1:
+                for x in ind_[:-1] :
+                    if x not in indices:
+                        indices.append(x)
+
+        # Removed doubled element of list
+        data_ = [i for j, i in enumerate(data_) if j not in indices]
+
+        # Create new file with removed doubled data point
+        if len(indices) > 0 and len(data_) == nb_pts_files_to_be_saved:
+            print('Doubled data point were found in file ' + file + ' file overwrite with correct number of data points')
+            with open(path_file_name, 'w') as f:
+                # write header in first row #
+                f.write(header_ )
+
+                # write data in second row #
+                for dat_ in data_:
+                    f.write(str(dat_) + '\n')
+        elif len(indices) > 0 and len(data_) != nb_pts_files_to_be_saved:
+            print('Doubled data point were found in file ' + file + ' however created data_ have the incorrect number of data points -> ' + str(len(data_)))
+        elif len(data_) != nb_pts_files_to_be_saved:
+            print('No doubled data point were found in file ' + file + ' however created data_ have the incorrect number of data points -> ' + str(len(data_)))
+        else:
+            print('No doubled data point were found in file '+ file)
+
+
+""" Write [file, Xpos, Ypos, A_int] data to Radial_Aint_Ar2_measurement.txt in path_
+Overwriting data if line allready exist or create a new line if it doesn't """
+def Save_Aint(file, Xpos, Ypos, A_int, save_to_path):
+
+    data_ = [file, Xpos, Ypos, A_int]
+    if os.path.isfile(save_to_path) == False:
+        with open(save_to_path, 'w') as f:
+            f.write(str(data_) + '\n')
+
+    with open(save_to_path, 'r') as f:
+        data = f.readlines()
+        numb_old = len(data)
+
+    # Re-create file empty removing all previously stored data
+    open(save_to_path, 'w').close()
+    line_exist = False
+
+    # Rewrite all data to file while cheching whether the data was already stored in the file
+    with open(save_to_path, 'a') as f:
+        for line in data:
+            if file == ast.literal_eval(line)[0]:
+                f.write(str(data_) + '\n')
+                line_exist = True
+            else:
+                f.write(line)
+
+    # Write new data to file if it was not already present
+    if line_exist == False:
+        with open(save_to_path, 'a') as f:
+            f.write(str(data_) + '\n')
+
+    numb_new = sum(1 for line in open(save_to_path))
+
+    if numb_new < numb_old or numb_new > numb_old+1:
+        with open(save_to_path+"BACKUP.txt", 'a') as f:
+            for line in data:
+                f.write(line)
+        sys.exit('Careful while saving data the file do not have the expected number of lines -> backup file created')
+
+""" Read A_int file and return Xpos and Aint value for a given Ypos """
+def Read_Aint(Ypos, path_):
+    with open(path_, 'r') as f:
+        data = f.readlines()
+
+    filename_ = []
+    Xpos_ = []
+    Ypos_ = []
+    Aint_ = []
+
+    for line in data:
+        line_ = ast.literal_eval(line)
+        if line_[2] == Ypos:
+            filename_.append(line_[0])
+            Xpos_.append(line_[1])
+            Ypos_.append(line_[2])
+            Aint_.append(line_[3])
+
+    return(filename_, Xpos_, Ypos_, Aint_)
+
+""" Read A_int file and return Xpos and Aint value for a given Ypos """
+def Read_fit_parmaters(path):
+    with open(path, 'r') as f:
+        data = f.readlines()
+
+    Ypos_ = []
+
+    N_t_ = []
+    r_t_ = []
+    w_t_ = []
+    x_t_ = []
+    N_g_ = []
+    w_g_ = []
+    x_g_ = []
+
+    N_t_err_ = []
+    r_t_err_ = []
+    w_t_err_ = []
+    x_t_err_ = []
+    N_g_err_ = []
+    w_g_err_ = []
+    x_g_err_ = []
+
+    for line in data:
+        line_ = ast.literal_eval(line)
+        Ypos_.append(line_[0])
+        N_t_.append(line_[1])
+        r_t_.append(line_[2])
+        w_t_.append(line_[3])
+        x_t_.append(line_[4])
+        N_g_.append(line_[5])
+        w_g_.append(line_[6])
+        x_g_.append(line_[7])
+
+        N_t_err_.append(line_[8])
+        r_t_err_.append(line_[9])
+        w_t_err_.append(line_[10])
+        x_t_err_.append(line_[11])
+        N_g_err_.append(line_[12])
+        w_g_err_.append(line_[13])
+        x_g_err_.append(line_[14])
+
+
+    return(Ypos_, N_t_,r_t_,w_t_,x_t_,N_g_,w_g_,x_g_,
+           N_t_err_,r_t_err_,w_t_err_,x_t_err_,N_g_err_,w_g_err_,x_g_err_)
+
+""" Read A_int file and return Xpos and Aint value for a given Ar_wet """
+def Read_Aint_Ar_wet(Ar_wet, path_):
+    with open(path_, 'r') as f:
+        data = f.readlines()
+
+    filename_ = []
+    Xpos_ = []
+    Ypos_ = []
+    Ar_wet_ = []
+    Aint_ = []
+
+    for line in data:
+        line_ = ast.literal_eval(line)
+        if line_[3] == Ar_wet:
+            filename_.append(line_[0])
+            Xpos_.append(line_[1])
+            Ypos_.append(line_[2])
+            Ar_wet_.append(line_[3])
+            Aint_.append(line_[4])
+
+    return(filename_, Xpos_, Ypos_, Ar_wet_, Aint_)
+
+""" Read A_int file and return Xpos and Aint value for a given Ypos """
+def Read_Aint_mix_ratio(Ypos, Xpos, path_):
+    with open(path_, 'r') as f:
+        data = f.readlines()
+
+    filename_ = []
+    Xpos_ = []
+    Ypos_ = []
+    O2_flow_ = []
+    N2_flow_ = []
+    Aint_ = []
+
+    for line in data:
+        line_ = ast.literal_eval(line)
+        if line_[2] == Ypos and line_[1] == Xpos:
+            filename_.append(line_[0])
+            Xpos_.append(line_[1])
+            Ypos_.append(line_[2])
+            O2_flow_.append(line_[3])
+            N2_flow_.append(line_[4])
+            Aint_.append(line_[5])
+
+    return(filename_, Xpos, Ypos_, O2_flow_, N2_flow_, Aint_)
+
+def Read_humidity_file(path):
+    with open(path, 'r') as f:
+        data = f.readlines()
+
+    Ar_dry = []
+    Ar_wet = []
+    Dew_pt = []
+    Humidi = []
+    for i in range(1, len(data)):
+        data_ = data[i].split('\t')
+        Ar_dry.append(float(data_[0]))
+        Ar_wet.append(float(data_[1]))
+        Dew_pt.append(float(data_[2]))
+        Humidi.append(float(data_[3]))
+
+    return(Ar_dry, Ar_wet, Dew_pt, Humidi)
+
