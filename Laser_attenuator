@@ -1,0 +1,195 @@
+import pyfirmata
+import time, sys
+
+
+""" Class to operate the Walk-Off Free Laser Attenuator (WOFLA) """
+
+class WOFLA():
+    def __init__(self):
+
+        self.board = pyfirmata.Arduino("COM3")
+
+        it = pyfirmata.util.Iterator(self.board)
+        it.start()
+
+        self.sensor1 = self.board.get_pin('d:13:i')
+        self.sensor2 = self.board.get_pin('d:12:i')
+        self.sensor3 = self.board.get_pin('d:11:i')
+        self.sensor4 = self.board.get_pin('d:10:i')
+
+        self.motor1_step = self.board.get_pin('d:6:o')
+        self.motor1_dir = self.board.get_pin('d:7:o')
+        self.motor2_step = self.board.get_pin('d:4:o')
+        self.motor2_dir = self.board.get_pin('d:5:o')
+
+        time.sleep(0.1)
+
+    def check_sensor(self, sensor):
+        if sensor == 1:
+            print(self.sensor1)
+        elif sensor == 2:
+            print(self.sensor2)
+        elif sensor == 3:
+            print(self.sensor3)
+        elif sensor == 4:
+            print(self.sensor4)
+        else:
+            print("Sensor must a number between 1 and 4")
+
+    def go_to_5degree_AOI(self):
+        self.motor1_dir.write(1)
+        self.motor2_dir.write(0)
+
+        count1 = 0
+        while self.sensor1.read() == True:
+            self.motor1_step.write(1)
+            self.motor1_step.write(0)
+            time.sleep(0.001)
+            count1 += 1
+
+        count2 = 0
+        while self.sensor3.read() == True:
+            self.motor2_step.write(1)
+            self.motor2_step.write(0)
+            time.sleep(0.001)
+            count2 += 1
+
+        print("Motor 1 was at position " + str(count1) + ", Motor 2 was at position "+ str(count2))
+        print("Both motors are now at 5 degree AOI position")
+
+        return count1, count2
+
+
+    def nb_step_between_sensor(self):
+        self.motor1_dir.write(1)
+        self.motor2_dir.write(0)
+
+        while self.sensor1.read() == True:
+            self.motor1_step.write(1)
+            self.motor1_step.write(0)
+            time.sleep(0.001)
+
+        while self.sensor3.read() == True :
+            self.motor2_step.write(1)
+            self.motor2_step.write(0)
+            time.sleep(0.001)
+
+        self.motor1_dir.write(0)
+        self.motor2_dir.write(1)
+
+        count1 = 0
+        while self.sensor2.read() == True:
+            self.motor1_step.write(1)
+            self.motor1_step.write(0)
+            time.sleep(0.001)
+            count1 += 1
+
+        count2 = 0
+        while self.sensor4.read() == True:
+            self.motor2_step.write(1)
+            self.motor2_step.write(0)
+            time.sleep(0.001)
+            count2 += 1
+
+        print(str(count1)+" steps between sensor 1 and 2 and "+str(count2)+" steps between sensor 3 and 4")
+
+        return count1, count2
+
+    def safe_move(self, nb_steps, dir):
+        if dir == "lower":
+            self.motor1_dir.write(0)
+            self.motor2_dir.write(1)
+        elif dir == "higher":
+            self.motor1_dir.write(1)
+            self.motor2_dir.write(0)
+        else:
+            print("dir = lower will move motor1 in clockwise and motor2 in anticlowise directions")
+            print("dir = higher will move motor1 in anticlockwise and motor2 in clowise directions")
+            sys.exit("Direction must be given lower or higher")
+
+        if isinstance(nb_steps, int) == False:
+            sys.exit("nb_steps must be an integer")
+
+        count = 0
+        while count < nb_steps:
+            self.motor1_step.write(1)
+            self.motor1_step.write(0)
+            self.motor2_step.write(1)
+            self.motor2_step.write(0)
+            count += 1
+            time.sleep(0.001)
+            if self.sensor1.read() == False:
+                self.motor1_dir.write(0)
+                print("Careful sensor 1 encountered -> Motor 1 direction is clockwise")
+            if self.sensor2.read() == False:
+                self.motor1_dir.write(1)
+                print("Careful sensor 2 encountered -> Motor 1 direction is anti-clockwise")
+            if self.sensor3.read() == False:
+                self.motor2_dir.write(1)
+                print("Careful sensor 3 encountered -> Motor 2 direction is anti-clockwise")
+            if self.sensor4.read() == False:
+                self.motor2_dir.write(0)
+                print("Careful sensor 4 encountered -> Motor 2 direction is clockwise")
+
+
+    def close(self):
+        self.board.exit()
+
+
+
+def Laser_attenuation_absolute_move(pos):
+    LA = WOFLA()
+    LA.go_to_5degree_AOI()
+    LA.safe_move(nb_steps=pos, dir="lower")
+    LA.close()
+
+    path_pos_LA = "C:\\Users\\Nave\\Desktop\\LA_set_position.txt"
+    with open(path_pos_LA, 'w') as f:
+        f.write(str(pos))
+
+
+def Laser_attenuation_relative_move(pos):
+    if isinstance(pos, int) == False:
+        sys.exit("pos must be an integer")
+
+    path_pos_LA = "C:\\Users\\Nave\\Desktop\\LA_set_position.txt"
+    with open(path_pos_LA, 'r') as f:
+        s = f.read()
+
+    print("Last set position of laser attenuation unit was according to file " + s)
+
+    old_pos = int(s)
+    diff = pos - old_pos
+
+    print("Laser attenuation unit will be moved by "+str(diff)+" steps")
+
+    LA = WOFLA()
+
+    if diff > 0:
+        direction = "lower"
+    elif diff < 0:
+        direction = "higher"
+    elif diff == 0:
+        sys.exit("According to file the position of the Laser attenuation unit is already at "+str(pos))
+
+
+    LA.safe_move(nb_steps=abs(diff), dir=direction)
+    LA.close()
+
+    with open(path_pos_LA, 'w') as f:
+        s = f.write(str(pos))
+
+def Last_set_pos_Laser_attenuation():
+    path_pos_LA = "C:\\Users\\Nave\\Desktop\\LA_set_position.txt"
+    with open(path_pos_LA, 'r') as f:
+        s = f.read()
+
+    print("Last set position of laser attenuation unit was according to file " + s)
+
+#Laser_attenuation_absolute_move(250)
+#Last_set_pos_Laser_attenuation()
+#Laser_attenuation_relative_move(pos=300)
+
+print(50)
+
+
