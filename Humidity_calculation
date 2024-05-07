@@ -1,0 +1,24 @@
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+from numpy import matlib
+from function import Gaussian, Ar2_radial_profile_2, width_TEM00,width_TEM00_mirror
+from Analyse_data import Ar2_N_int
+from scipy.optimize import curve_fit
+
+T=273.15+20
+e_lab_water = np.exp(-6096.9385*T**(-1)+ 21.2409642 - 2.711193*10**(-2)*T + 1.673952*10**(-5)*T**2 + 2.433502* np.log(T))/100
+e_lab_ice = np.exp(-6024.5282*T**(-1)+ 29.32707 + 1.0613868*10**(-2)*T- 1.3198825*10**(-5)*T**2 - 0.49382577* np.log(T))/100
+
+T=273.15-7.3
+e_meas_water = np.exp(-6096.9385*T**(-1)+ 21.2409642 - 2.711193*10**(-2)*T + 1.673952*10**(-5)*T**2 + 2.433502* np.log(T))/100
+e_meas_ice = np.exp(-6024.5282*T**(-1)+ 29.32707 + 1.0613868*10**(-2)*T- 1.3198825*10**(-5)*T**2 - 0.49382577* np.log(T))/100
+
+e_meas_mean = (e_meas_water+e_meas_ice)/2
+
+RH = (e_meas_water/e_lab_water)*100
+
+PPMv = ((e_meas_ice/(1013.25-e_meas_ice))*10**6)
+
+print(PPMv)
+
