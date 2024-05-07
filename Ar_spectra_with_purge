@@ -1,0 +1,128 @@
+import matplotlib.pyplot as plt
+import numpy as np
+from Save_and_read import Read_data
+from Analyse_data import Fit_poly_spectrum
+path_ = "M:\\PD_YAG-Dye_2.61\\Argon_excimer_CRDS\\Raw_data\\AN\\"
+
+markers = ['o','v','^','<','>','x','+','s','p','h','*','1','2','3','4','8','o','v','^','<','>','x','+','s','p','h','*','1','2','3','4','8','o','v','^','<','>','x','+','s','p','h','*','1','2','3','4','8']
+
+""" 20221118-20221124 Series of measurements move='wl',start=503, stop=25, step=0.02, numb=200, with new cursors [0, 900, 20000, 30000] """
+
+#folders = ['20221118','20221119','20221119','20221119','20221120','20221121','20221122','20221122','20221122','20221123','20221123','20221123','20221124']
+#files   = ['092304'  ,'002013'  ,'081301'  ,'223250'  ,'114918'  ,'172949'  ,'012345'  ,'094257'  ,'180947'  ,'020906'  ,'103551'  ,'190253'  ,'031011'  ]
+#type_of_file = '_wavelength_tau.txt'
+
+#folders = ['20221118','20221119','20221119','20221121','20221122','20221122','20221122','20221123','20221123','20221124']
+#files   = ['092304'  ,'002013'  ,'081301'  ,'172949'  ,'012345'  ,'094257'  ,'180947'  ,'103551'  ,'190253'  ,'031011'  ]
+#type_of_file = '_wavelength_tau.txt'
+
+folders = ['20221125','20221125','20221125']
+files   = ['165557'  ,'173526'  ,'180911'  ]
+type_of_file = '_Y_position_tau.txt'
+
+show_each = False
+
+Xpos, Ypos, x_, y_, std_, tau_, Plasma_Pk_Pk_ = Read_data(path_, file=folders[0]+'//'+files[0]+type_of_file)
+y_mean = np.zeros((len(y_)))
+
+for i in range(0, len(folders)):
+    Xpos, Ypos, x_, y_, std_, tau_, Plasma_Pk_Pk_ = Read_data(path_, file=folders[i]+'//'+files[i]+type_of_file)
+    y_fit, cursors_position = Fit_poly_spectrum(x_, y_, numb_cursors=8, cursors_position=[0, 42, 110, 430, 690, 780, 1000, 1100],select_new_cursor=False, poly_degree=5)
+
+    if show_each == True:
+        plt.plot(x_, y_, marker=markers[i], label=files[i])
+        plt.plot(x_, y_fit, '-r')
+        for x in cursors_position:
+            plt.vlines(x_[x], np.min(y_), np.max(y_), linewidth=2, color='red')
+
+        plt.legend(bbox_to_anchor=(0, 1.08), loc="upper left", ncol=10)
+        plt.get_current_fig_manager().window.state('zoomed')
+        plt.show()
+
+    y_fit = np.array(y_fit)
+    y_ = np.array(y_)
+
+    y_abs = 58*((1/(3E4*y_)-1/(3E4*y_fit)))
+
+    #plt.plot(x_, y_abs, marker=markers[i], label=files[i])
+    #plt.get_current_fig_manager().window.state('zoomed')
+    #plt.show()
+
+    y_mean += y_abs
+
+y_mean = y_mean/len(folders)
+
+plt.plot(x_, y_mean, '-b')
+plt.get_current_fig_manager().window.state('zoomed')
+plt.show()
+
+
+# BACKGROUND 20221124-20221125 Series of measurements move='wl',start=503, stop=25, step=0.02, numb=200, [0, 900, 20000, 30000], PLASMA OFF
+"""
+folders = ['20221124','20221125']
+files   = ['174944'  ,'011217'  ]
+type_of_file = '_wavelength_tau.txt'
+
+show_each = False
+
+Xpos, Ypos, x_, y_, std_, tau_, Plasma_Pk_Pk_ = Read_data(path_, file=folders[0]+'//'+files[0]+type_of_file)
+y_mean = np.zeros((len(y_)))
+
+for i in range(0, len(folders)):
+    Xpos, Ypos, x_, y_, std_, tau_, Plasma_Pk_Pk_ = Read_data(path_, file=folders[i]+'//'+files[i]+type_of_file)
+    y_fit, cursors_position = Fit_poly_spectrum(x_, y_, numb_cursors=8, cursors_position=[0, 42, 110, 430, 690, 780, 1000, 1100],select_new_cursor=False, poly_degree=4)
+
+    if show_each == True:
+        plt.plot(x_, y_, marker=markers[i], label=files[i])
+        plt.plot(x_, y_fit, '-r')
+        for x in cursors_position:
+            plt.vlines(x_[x], np.min(y_), np.max(y_), linewidth=2, color='red')
+
+        plt.legend(bbox_to_anchor=(0, 1.08), loc="upper left", ncol=10)
+        plt.get_current_fig_manager().window.state('zoomed')
+        plt.show()
+
+    y_fit = np.array(y_fit)
+    y_ = np.array(y_)
+
+    y_abs = 58*(1/(3E4*y_)-1/(3E4*y_fit))
+
+    #plt.plot(x_, y_abs, marker=markers[i], label=files[i])
+    #plt.get_current_fig_manager().window.state('zoomed')
+    #plt.show()
+
+    y_mean += y_abs
+
+y_mean = y_mean/len(folders)
+
+plt.plot(x_, y_mean, '-r')
+
+
+plt.legend(bbox_to_anchor=(0,1.08), loc="upper left", ncol=10)
+plt.xlabel("Wavelength [nm]")
+plt.ylabel("Integrated absorbance")
+
+plt.get_current_fig_manager().window.state('zoomed')
+plt.show()
+"""
+
+""" Xpos and Ypos measurements taken at different wavelength plasma on and off 
+Xpos  124215@511_plasma_on     132421@511.94_plasma_on 155048@511_plasma_off
+Ypos  165557@511.94_plasma_off 173526@511.94_plasma_on 180911@11_plasma_on  """
+"""
+folders = ['20221124','20221124','20221124','20221125','20221125','20221125']
+files   = ['124215_X','132421_X','155048_X','165557_Y','173526_Y','180911_Y']
+type_of_file = '_position_tau.txt'
+
+for i in range(0, len(folders)):
+    Xpos, Ypos, x_, y_, std_, tau_, Plasma_Pk_Pk_ = Read_data(path_, file=folders[i]+'//'+files[i]+type_of_file)
+    plt.plot(x_, y_, marker=markers[i], label=files[i])
+    
+
+plt.legend(bbox_to_anchor=(0,1.08), loc="upper left", ncol=10)
+plt.xlabel(type_of_file)
+plt.ylabel("Tau")
+
+plt.get_current_fig_manager().window.state('zoomed')
+plt.show()
+"""
