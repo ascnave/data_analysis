@@ -1,0 +1,120 @@
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+from Save_and_read import Read_data
+from Analyse_data import Fit_poly_spectrum
+path_ = "M:\\PD_YAG-Dye_2.61\\Argon_excimer_CRDS\\Raw_data\\AN\\"
+
+markers = ['o','v','^','<','>','x','+','s','p','h','*','1','2','3','4','8','o','v','^','<','>','x','+','s','p','h','*','1','2','3','4','8','o','v','^','<','>','x','+','s','p','h','*','1','2','3','4','8']
+
+""" 20221118-20221124 Series of measurements move='wl',start=503, stop=525, step=0.02, numb=200, with new cursors [0, 900, 20000, 30000] """
+
+folders = ['20221118','20221119','20221119','20221121','20221122','20221122','20221122','20221123','20221123','20221124']
+files   = ['092304'  ,'002013'  ,'081301'  ,'172949'  ,'012345'  ,'094257'  ,'180947'  ,'103551'  ,'190253'  ,'031011'  ]
+type_of_file = '_wavelength_tau.txt'
+
+
+Xpos, Ypos, x_, y_, std_, tau_, Plasma_Pk_Pk_ = Read_data(path_, file=folders[0]+'//'+files[0]+type_of_file)
+y_mean = np.zeros((len(y_)))
+
+for i in range(0, len(folders)):
+    Xpos, Ypos, x_, y_, std_, tau_, Plasma_Pk_Pk_ = Read_data(path_, file=folders[i]+'//'+files[i]+type_of_file)
+    y_fit, cursors_position = Fit_poly_spectrum(x_, y_, numb_cursors=8, cursors_position=[0, 42, 110, 430, 690, 780, 1000, 1100],select_new_cursor=False, poly_degree=5)
+
+    y_fit = np.array(y_fit)
+    y_ = np.array(y_)
+
+    y_abs = 58*((1/(3E4*y_)-1/(3E4*y_fit)))
+
+    y_mean += y_abs
+
+y_mean = y_mean/len(folders)
+
+""" Make figure """
+fs=12
+cm = 1/2.54
+matplotlib.rcParams["font.family"] = "Times New Roman"
+matplotlib.rcParams["mathtext.fontset"] = "cm"
+
+fig, ax = plt.subplots(figsize=(21*cm,9.3*cm))
+
+calib_coef=0.1175
+move_text = calib_coef*2
+x__ = [x+calib_coef for x in x_]
+ax.plot(x__, y_mean*10**6, '-k')
+
+for axis in ['top','bottom','left','right']:
+    ax.spines[axis].set_linewidth(2)
+
+ax.set_xlabel("Wavelength [nm]", fontsize=fs)
+ax.set_ylabel("A$_{int}$ [10$^{-6}$]", fontsize=fs)
+
+ax.set_xlim(503.2, 523.6)
+ax.set_xticks([504,508,512,516,520,524], fontsize=fs)
+ax.set_xticks([506,510,514,518,520], minor=True)
+
+ax.set_ylim(-1, 10.3)
+ax.set_yticks([0,2,4,6,8,10], fontsize=fs)
+ax.set_yticks((1,3,5,7,9), minor=True)
+
+#ax.tick_params(axis='both', which='major', width=2, labelsize=fs, direction="in", left=True, right=True, bottom=True, top=True)
+#ax.tick_params(axis='both', which='minor', width=2, labelsize=fs, direction="in", left=True, right=True, bottom=True, top=True)
+
+ax.tick_params(axis='both', which='major', labelsize=fs, direction="in", length=4, width=2, left=True, right=True, bottom=True, top=True)
+ax.tick_params(axis='both', which='minor', labelsize=fs, direction="in", length=2, width=2, left=True, right=True, bottom=True, top=True)
+
+""" Add text and brackets for figures """
+# Molecular Argon
+ax.annotate('Ar$_2^*$ 5p$\pi^3$$\Pi_{g}$ $\leftarrow$ a$^3$$\Sigma_{u}^{+}$ \n          $\Delta\\nu$ = 0', xy=(504.5+move_text, 3.8), xytext=(503.3+move_text, 5),
+            fontsize=fs, arrowprops=dict(arrowstyle='->', relpos=(0.5,1)))
+
+ax.text(512.8+move_text, 9.55, 'Ar$_2^*$ 7p$\sigma^3$$\Sigma_{g}^{+}$ $\leftarrow$ a$^3$$\Sigma_{u}^{+}$ ($\\nu$$^{\prime}$-$\\nu$$^{\prime\prime}$)',  fontsize=fs)
+
+ax.text(511.3+move_text, 8.55, '(0-0)',  fontsize=fs)
+ax.text(512.4+move_text, 3.5, '(1-1)',  fontsize=fs)
+ax.text(519.0+move_text, 2.2, '(0-1)',  fontsize=fs)
+ax.text(520.1+move_text, 1.8, '(1-2)',  fontsize=fs)
+
+xlim=[511.92+calib_coef, 520.7+calib_coef]
+ylim=[9,9.4]
+lower_tick=[511.92+calib_coef,513.06+calib_coef,519.68+calib_coef,520.7+calib_coef]
+
+xmed=(xlim[0]+xlim[1])/2
+ymed=(ylim[0]+ylim[1])/2
+
+ax.plot([xmed, xmed], [ymed, ylim[1]],  '-k', linewidth=2.0)
+ax.plot([xlim[0], xlim[1]], [ymed, ymed],  '-k', linewidth=2.0)
+
+for tick in lower_tick:
+    ax.plot([tick, tick], [ylim[0], ymed], '-k', linewidth=2.0)
+
+# Atomic Argon
+ax.text(517.2+move_text, 2.9, 'Ar', fontsize=fs)
+
+xlim=[516.4+calib_coef, 518.9+calib_coef]
+ylim=[2.3,2.7]
+lower_tick=[516.4+calib_coef, 518.9+calib_coef]
+
+xmed=(xlim[0]+xlim[1])/2
+ymed=(ylim[0]+ylim[1])/2
+
+ax.plot([xmed, xmed], [ymed, ylim[1]],  '-k', linewidth=2.0)
+ax.plot([xlim[0], xlim[1]], [ymed, ymed],  '-k', linewidth=2.0)
+
+for tick in lower_tick:
+    ax.plot([tick, tick], [ylim[0], ymed], '-k', linewidth=2.0)
+
+
+#ax.annotate('7p$\u03C3^3$$\u03A3_g^+$ $\u27F5$ a$^3$$\u03A3_u^+$ (v´ - v´´)', xy=(516, 9), xytext=(512, 9.4),
+#            fontsize=fs, arrowprops=dict(arrowstyle='-[, widthB=7.0, lengthB=1.5', lw=2.0))
+
+#plt.show()
+
+"""save_to_path = "C:\\Users\\Nave\Desktop\\Nave\\"
+
+with open(save_to_path+"fig2.txt", 'w') as f:
+    for i in range(0,len(x__)):
+        f.write("{:8.4f}".format(x__[i]) + "\t" + "{:8.6e}".format(y_mean[i]) + '\n')"""
+plt.savefig('M:\\PD_YAG-Dye_2.61\\Argon_excimer_CRDS\\Publication_1\\figures\\figure2.eps', bbox_inches='tight', format='eps')
+#plt.savefig('M:\\PD_YAG-Dye_2.61\\Argon_excimer_CRDS\\Presentation\\Spectrum.png', format='png')
+
