@@ -1,0 +1,135 @@
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+import datetime
+from scipy.optimize import curve_fit
+from Save_and_read import Read_data, Files_list, Save_Aint, Read_Aint
+from Analyse_data import Fit_poly_spectrum, Ar2_N_int
+from function import Ar2_radial_profile, Gaussian, distance_through_toroid
+path = "M:\\PD_YAG-Dye_2.61\\Argon_excimer_CRDS\\Analysed_data\\"
+
+fs=14
+cm = 1/2.54
+fig, ax = plt.subplots(nrows=2, ncols=4, figsize=(35*cm,15*cm))
+
+x1 = [0, 0, 0, 0, 1, 1, 1]
+x2 = [0, 1, 2, 3, 0, 1, 2]
+i = 0
+matplotlib.rcParams["font.family"] = "Times New Roman"
+matplotlib.rcParams["mathtext.fontset"] = "cm"
+
+Ypos_=[86.2, 85.8, 85.4, 85, 84, 83, 82]
+
+for Ypos in Ypos_:
+    Xpos_, N_int_, N_int_std_ = Ar2_N_int(Ypos=Ypos, cross_section=3.3E-16,path_=path+"Radial_Aint_Ar2_3slm_Ar.txt")
+    Xpos_c, N_int_c, N_int_std_c = Ar2_N_int(Ypos=Ypos, cross_section=3.3E-16,path_=path + "Radial_Aint_Ar2_3slm_Ar_with_curtain_at86.2_54.85to55.9_removed.txt")
+    Xpos_5, N_int_5, N_int_std_5 = Ar2_N_int(Ypos=Ypos, cross_section=3.3E-16,path_=path + "Radial_Aint_Ar2_5slm_Ar.txt")
+    Xpos_h, N_int_h, N_int_std_h = Ar2_N_int(Ypos=Ypos, cross_section=3.3E-16,path_=path + "Radial_Aint_Ar2_3slm_Ar_5sccm_wetAr.txt")
+
+    BG_density = 0.25
+
+    N_int_ = [x/1E10-BG_density for x in N_int_]
+    N_int_std_ = [x/1E10 for x in N_int_std_]
+
+    N_int_c = [x / 1E10 - BG_density for x in N_int_c]
+    N_int_std_c = [x / 1E10 for x in N_int_std_c]
+
+    N_int_5 = [x / 1E10 - BG_density for x in N_int_5]
+    N_int_std_5 = [x / 1E10 for x in N_int_std_5]
+
+    N_int_h = [x / 1E10 - BG_density for x in N_int_h]
+    N_int_std_h = [x / 1E10 for x in N_int_std_h]
+
+    #popt, pcov = curve_fit(Ar2_radial_profile, Xpos_, N_int_, p0=[1, 0.8, 0.25, 1.3, 0, 1.7, 55.4])
+    #popt, pcov = curve_fit(Ar2_radial_profile, Xpos_c, N_int_c, p0=[1, 0.8, 0.25, 1.3, 0, 1.7, 55.4])
+    #popt, pcov = curve_fit(Ar2_radial_profile, Xpos_5, N_int_5, p0=[1, 0.8, 0.25, 1.3, 0, 1.7, 55.4])
+    popt, pcov = curve_fit(Ar2_radial_profile, Xpos_h, N_int_h, p0=[1, 0.8, 0.25, 1.3, 0, 1.7, 55.4])
+    #print(popt[6])
+
+    #Xpos_ = [x - popt[6] for x in Xpos_]
+    #Xpos_c = [x - popt[6] for x in Xpos_c]
+    #Xpos_5 = [x - popt[6] for x in Xpos_5]
+    Xpos_h = [x - popt[6] for x in Xpos_h]
+
+    x__ = np.arange(-2.2, 2.2, 0.001)
+    y_fit = Ar2_radial_profile(x_=x__, N_t=popt[0], r_1=popt[1], w_t=popt[2], N_ar2=popt[3], x_ar2=popt[4],w_ar2=popt[5], offset=0)
+    y_gaussian = popt[3] * Gaussian(x_=x__, x0=popt[4], w=popt[5])
+    y_toroid = popt[0] * distance_through_toroid(x_=x__, r_1=popt[1], w_t=popt[2])
+
+    #ax[x1[i],x2[i]].errorbar(Xpos_, N_int_, yerr=N_int_std_, fmt='o', capsize=5, color='k', label='Data points', zorder=2)
+    #ax[x1[i], x2[i]].errorbar(Xpos_c, N_int_c, yerr=N_int_std_c, fmt='o', capsize=5, color='k',label='Data points', zorder=2)
+    #ax[x1[i], x2[i]].errorbar(Xpos_5, N_int_5, yerr=N_int_std_5, fmt='o', capsize=5, color='k',label='Data points', zorder=2)
+    ax[x1[i], x2[i]].errorbar(Xpos_h, N_int_h, yerr=N_int_std_h, fmt='o', capsize=5, color='k',label='Data points', zorder=2)
+
+    #if i > 0:
+    ax[x1[i],x2[i]].plot(x__, y_fit, color='red', lw=3, label='Model fit', zorder=2)
+    ax[x1[i],x2[i]].plot(x__, y_gaussian, color='green', label='Gaussian part')
+    ax[x1[i],x2[i]].plot(x__, y_toroid, color='blue', label='Toroid part')
+
+    for axis in ['top', 'bottom', 'left', 'right']:
+        ax[x1[i],x2[i]].spines[axis].set_linewidth(2)
+
+    z = abs(Ypos - 86.2)+0.4
+
+    ax[x1[i], x2[i]].set_xlim(-1.9, 1.9)
+    ax[x1[i], x2[i]].set_xticks([ -1.6, -0.8, 0, 0.8, 1.6], fontsize=fs)
+    ax[x1[i], x2[i]].set_xticks([-1.2, -0.4, 0.4, 1.2], minor=True)
+
+
+    if i < 4:
+        ax[x1[i], x2[i]].set_ylim(0, 4.9)#3 -> 4.9 // 5 -> 5.4 // c -> 6.8 // h -> 3.2
+        ax[x1[i], x2[i]].set_yticks((0, 2, 4), fontsize=fs)
+        ax[x1[i], x2[i]].set_yticks((1, 3), minor=True)
+        ax[x1[i], x2[i]].text(0.85, 4.2, 'z = ' + '{0:.1f}'.format(z), fontsize=1.2*fs)
+    elif i > 3:
+        ax[x1[i], x2[i]].set_ylim(0, 1.3)#3 -> 1.3 // 5 -> 1.8 // c -> 1 // h -> 0.8
+        ax[x1[i], x2[i]].set_yticks((0, 0.5, 1), fontsize=fs)
+        ax[x1[i], x2[i]].set_yticks((0.25,0.75,1.25), minor=True)
+        ax[x1[i], x2[i]].text(0.85, 1.1, 'z = ' + '{0:.1f}'.format(z), fontsize=1.2*fs)
+
+
+    ax[x1[i], x2[i]].tick_params(axis='both', which='major', labelsize=fs, direction="in", length=4, width=2, left=True, right=True, bottom=True, top=True)
+    ax[x1[i], x2[i]].tick_params(axis='both', which='minor', labelsize=fs, direction="in", length=2, width=2, left=True, right=True, bottom=True, top=True)
+
+    i += 1
+
+    save_to_path = "M:\\PD_YAG-Dye_2.61\\Argon_excimer_CRDS\\INPTDAT\\"
+    file_name="fig6b_Zpos="+"{:1.1f}".format(z)+".txt"
+
+    #print(len(Xpos_), len(N_int_), len(N_int_std_))
+    with open(save_to_path+file_name, 'w') as f:
+        f.write("  x [mm]    N_{int} [mol.cm^{-2}]  STD_N_{int} [mol.cm^{-2}]"+ '\n')
+        for j in range(0,len(Xpos_h)):
+            f.write("{:8.4f}".format(Xpos_h[j]) + "\t" + "{:8.6e}".format(N_int_h[j]*1E10) + "\t\t" + "{:8.6e}".format(N_int_std_h[j]*1E10) + '\n')
+
+fig.text(0.07, 0.5, "N$_{int}$ [10$^{10}$ molecule . cm$^{-2}$]", va='center', rotation='vertical', fontsize=fs)
+
+ax[0,1].tick_params(labelleft = False)
+ax[0,2].tick_params(labelleft = False)
+ax[0,3].tick_params(labelleft = False)
+ax[1,1].tick_params(labelleft = False)
+ax[1,2].tick_params(labelleft = False)
+
+
+ax[1, 0].set_xlabel("x [mm]", fontsize=fs)
+ax[1, 1].set_xlabel("x [mm]", fontsize=fs)
+ax[1, 2].set_xlabel("x [mm]", fontsize=fs)
+ax[0, 3].set_xlabel("x [mm]", fontsize=fs)
+
+handles, labels = ax[x1[1], x2[1]].get_legend_handles_labels()
+order= [3,0,1,2]
+
+ax[x1[6], x2[6]].legend([handles[idx] for idx in order],[labels[idx] for idx in order], bbox_to_anchor=(1.2, 0.7), loc='best', fontsize=fs, ncol=1, frameon=False)
+#ax[x1[6], x2[6]].legend(bbox_to_anchor=(1.2, 0.6), loc='best', fontsize=fs, ncol=1, frameon=False)
+
+fig.delaxes(ax[1, 3])
+plt.subplots_adjust(wspace=0,hspace=0)
+
+#fig.text(0.81, 0.12, '(a) 3 slm Ar + \n 5 slm curtain 80% N$_2$, 20% O$_2$', ha='center', va='center', fontsize=fs) # '(a) 3 slm Ar + 5 slm O$_2$/N$_2$ curtain'  '(b) 3 slm Ar + $\\approx$ 50 ppm H$_2$O'    '(c) 5 slm Ar'
+
+#plt.savefig('M:\\PD_YAG-Dye_2.61\\Argon_excimer_CRDS\\Publication_2_SR\\figures\\figure4.eps', format='eps', bbox_inches='tight')
+plt.show()
+
+
+
+
