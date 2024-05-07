@@ -1,0 +1,175 @@
+
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.optimize import curve_fit
+from Analyse_data import Ar2_N_int
+from function import Ar2_radial_profile, polynome, distance_through_toroid, exponential
+from Save_and_read import Read_fit_parmaters
+path = "M:\\PD_YAG-Dye_2.61\\Argon_excimer_CRDS\\Analysed_data\\fitting_parameters\\"
+
+files=["Ar2_3slm_Ar.txt",
+"Ar2_3slm_Ar_with_curtain.txt",
+"Ar2_3slm_Ar_5sccm_wetAr.txt",
+"Ar2_5slm_Ar.txt"]
+
+
+""" Figure parameters"""
+fs=14
+cm = 1/2.54
+fig, ax = plt.subplots(nrows=2, ncols=2,figsize=(25 * cm, 22 * cm))
+matplotlib.rcParams["font.family"] = "Times New Roman"
+matplotlib.rcParams["mathtext.fontset"] = "cm"
+
+symbol_ = ["ks", "ro", "b^", "gv"]
+linestyle_ = ["solid", "dotted", "dashed", "dashdot"]
+color_ = ["k", "r", "b", "g"]
+label_ = ["3 slm Ar", "3 slm Ar + 5 slm curtain 80% N$_2$ + 20% O$_2$","3 slm Ar + 50 ppm H$_2$O", "5 slm Ar"]
+
+for i in range(0, len(files)):
+    """ Get fitting parameters from file """
+    Ypos_, N_t_,r_t_,w_t_,x_t_,N_g_,w_g_,x_g_,N_t_err_,r_t_err_,w_t_err_,x_t_err_,N_g_err_,w_g_err_,x_g_err_= Read_fit_parmaters(path+files[i])
+
+
+    """ Remove offset from toroid positional shift """
+    x_t_ = [x-5.538 for x in x_t_]
+
+    """ Determine total density in the gaussian and toroid """
+    z_ = np.abs(np.array(Ypos_)-86.2)+0.4
+
+    Delta_z = 0.027
+
+    N_g_tot_ = [(a/(b*np.sqrt(np.pi/2))) * 2*np.pi * b**2 * Delta_z * 100 for a, b in zip(N_g_, w_g_)]
+    N_g_tot_err_ = [(a/(b*np.sqrt(np.pi/2))) * 2*np.pi * b**2 * Delta_z * 100  for a, b in zip(N_g_err_, w_g_)]
+
+    N_t_tot_ = [a*((np.pi*b**2)-(np.pi*(b-c)**2)) * Delta_z * 1000  for a, b, c in zip(N_t_, r_t_, w_t_)]
+    N_t_tot_err_ = [a*((np.pi*b**2)-(np.pi*(b-c)**2)) * Delta_z * 1000  for a, b, c in zip(N_t_err_, r_t_, w_t_)]
+
+
+    """ Fit polynome to data """
+    z__ = np.arange(0.4, 4.6, 0.001)
+
+    if i == 1:
+        z__ = np.arange(0.8, 4.6, 0.001)
+
+    coef = np.polyfit(z_, N_t_tot_, 2)
+    y_fit_N_t_ = np.polyval(coef, z__)
+
+    coef = np.polyfit(z_, N_g_tot_, 1)
+    y_fit_N_g_ = np.polyval(coef, z__)
+    #print(coef, files[i])
+
+    coef = np.polyfit(z_, r_t_, 1)
+    y_fit_r_t_ = np.polyval(coef, z__)
+
+    coef = np.polyfit(z_, w_t_, 1) # , w=[1/x for x in w_t_err_]
+    y_fit_w_t_ = np.polyval(coef, z__)
+    print(np.mean(w_t_), files[i])
+    print(coef, files[i])
+
+    coef = np.polyfit(z_, w_g_, 2)
+    y_fit_w_g_ = np.polyval(coef, z__)
+
+    """ Plot data with error bar """
+    # Density
+    ax[0,0].errorbar(z_, N_g_tot_, yerr=N_g_tot_err_, fmt=symbol_[i], ms=8, fillstyle="full", capsize=6, label=label_[i],zorder=2)
+    ax[0,0].plot(z__, y_fit_N_g_, color=color_[i], linestyle=linestyle_[i])
+    ax[0,0].set_ylim(0, 5.5)
+    ax[0,0].set_yticks([0, 2, 4], fontsize=fs)
+    ax[0,0].set_yticks((1, 3), minor=True)
+    ax[0,0].set_ylabel("N$_{tot}$ [10$^{8}$ molecules]", fontsize=fs)
+
+
+    ax[0,1].errorbar(z_, N_t_tot_, yerr=N_t_tot_err_, fmt=symbol_[i], ms=8, fillstyle="full", capsize=6, label=label_[i], zorder=2)
+    ax[0,1].plot(z__, y_fit_N_t_, color=color_[i], linestyle=linestyle_[i])
+    ax[0,1].set_ylim(0, 8)
+    ax[0,1].set_yticks([0,2,4,6,8], fontsize=fs)
+    ax[0,1].set_yticks((1,3,5,7), minor=True)
+    ax[0,1].set_ylabel("N$_{tot}$ [10$^{7}$ molecules]", fontsize=fs)
+
+
+
+    # Radius/Thickness/offset
+    w_g_ = [x*10 for x in w_g_]
+    w_g_err_ = [x * 10 for x in w_g_err_]
+    y_fit_w_g_ = [x * 10 for x in y_fit_w_g_]
+    r_t_ = [x * 100 for x in r_t_]
+    r_t_err_ = [x * 100 for x in r_t_err_]
+    y_fit_r_t_ = [x * 100 for x in y_fit_r_t_]
+    w_t_ = [x * 100 for x in w_t_]
+    w_t_err_ = [x * 100 for x in w_t_err_]
+    y_fit_w_t_ = [x * 100 for x in y_fit_w_t_]
+
+
+    ax[1,0].errorbar(z_, w_g_, yerr=w_g_err_, fmt=symbol_[i], ms=8, fillstyle="full", capsize=6, label=label_[i], zorder=2)
+    ax[1,0].plot(z__, y_fit_w_g_, color=color_[i], linestyle=linestyle_[i])
+    ax[1,0].set_ylim(0.7, 2.7)
+    ax[1,0].set_yticks([1, 2], fontsize=fs)
+    ax[1,0].set_yticks((1.5, 2.5), minor=True)
+    ax[1,0].set_ylabel("Width [mm]", fontsize=fs)
+
+
+    ax[1,1].errorbar(z_, r_t_, yerr=r_t_err_, fmt=symbol_[i], ms=8, fillstyle="full", capsize=6, label=label_[i],zorder=2)
+    ax[1,1].errorbar(z_, w_t_, yerr=w_t_err_, fmt=symbol_[i], ms=8, fillstyle="none", capsize=6, zorder=2)
+    ax[1,1].plot(z__, y_fit_r_t_, color=color_[i], linestyle=linestyle_[i])
+    ax[1,1].plot(z__, y_fit_w_t_, color=color_[i], linestyle=linestyle_[i])
+    ax[1,1].set_ylim(0, 9)
+    ax[1,1].set_yticks([0,4,8], fontsize=fs)
+    ax[1,1].set_yticks((2, 6), minor=True)
+    ax[1,1].set_ylabel("Thickness & Radius [10$^{-1}$ mm]", fontsize=fs)
+
+    #ax1 = ax.twinx()
+    #ax1.set_ylim(0, 1)
+
+    #ax1.set_yticks([0,0.5,1], fontsize=fs)
+    #ax1.set_yticks((0.25, 0.75), minor=True)
+    #ax1.set_ylabel("Radius [mm]", fontsize=fs, rotation=270, va='bottom')
+    #ax1.tick_params(axis='both', which='major', labelsize=fs, direction="in", length=4, width=2, left=True, right=True,bottom=True, top=True)
+    #ax1.tick_params(axis='both', which='minor', labelsize=fs, direction="in", length=2, width=2, left=True, right=True,bottom=True, top=True)
+
+
+
+col=[0,0,1,1]
+row=[0,1,0,1]
+
+for i in range(0,4):
+    for axis in ['top','bottom','left','right']:
+            ax[col[i],row[i]].spines[axis].set_linewidth(2)
+
+
+    ax[col[i],row[i]].set_xlim(0, 4.8)
+    ax[col[i],row[i]].set_xticks([0,1,2,3,4], fontsize=fs)
+    ax[col[i],row[i]].set_xticks((0.5,1.5,2.5,3.5,4.5), minor=True)
+    ax[col[i],row[i]].set_xlabel("z [mm]", fontsize=fs)
+
+    ax[col[i],row[i]].tick_params(axis='both', which='major', labelsize=fs, direction="in", length=4, width=2, left=True, right=True, bottom=True, top=True)
+    ax[col[i],row[i]].tick_params(axis='both', which='minor', labelsize=fs, direction="in", length=2, width=2, left=True, right=True, bottom=True, top=True)
+
+    if i == 0:
+        ax[col[i],row[i]].text(2.6, 5.1, "(a)", ha='center', va='center', fontsize=18)
+    if i == 1:
+        ax[col[i], row[i]].text(2.6, 7.3, "(b)", ha='center', va='center', fontsize=18)
+    if i == 2:
+        ax[col[i], row[i]].text(2.6, 2.55, "(c)", ha='center', va='center', fontsize=18)
+    if i == 3:
+        ax[col[i], row[i]].text(2.6, 8.45, "(d)", ha='center', va='center', fontsize=18)
+
+
+ax[1,0].legend(loc='upper center', bbox_to_anchor=(1.05, -0.15), fontsize=fs, ncol=2, frameon=False)
+
+fig.text(0.3, 0.9, "Gaussian", ha='center', va='center', fontsize=18)
+fig.text(0.72, 0.9, "Toroid", ha='center', va='center', fontsize=18)
+
+#handles, labels = ax.get_legend_handles_labels()
+#order= [6,7,8,0,1,2,9,10,11,3,4,5]
+#order= [2,3,0,1]
+#order= [3,4,5,0,1,2]
+
+#ax.legend([handles[idx] for idx in order],[labels[idx] for idx in order], bbox_to_anchor=(0.5, 1.02),loc='upper center',  fontsize=fs, ncol=2, frameon=False)
+
+
+#plt.show()
+
+plt.savefig('M:\\PD_YAG-Dye_2.61\\Argon_excimer_CRDS\\Publication_2_SR\\figures\\figure8.eps', format='eps', bbox_inches='tight')
+
+
