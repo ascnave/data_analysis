@@ -1,0 +1,77 @@
+from Analyse_data import Ar2_N_int
+import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
+path = "M:\\PD_YAG-Dye_2.61\\Argon_excimer_CRDS\\Analysed_data\\"
+
+fs=24
+cm = 1/2.54
+fig, ax = plt.subplots(figsize=(21*cm,16*cm))
+matplotlib.rcParams["font.family"] = "Times New Roman"
+matplotlib.rcParams["mathtext.fontset"] = "cm"
+
+
+Ypos_=[86.2, 85.8, 85.4, 85, 84, 83, 82]
+
+N_int_avg_=[]
+N_int_avg_err_=[]
+d=0.14
+
+for Ypos in Ypos_:
+    Xpos_p, N_int_p, N_int_std_p = Ar2_N_int(Ypos=Ypos, cross_section=3.3E-16,path_=path + "Radial_Aint_Ar2__3slm_Ar_with_purge.txt")
+
+    BG_density = 0.025
+
+    N_int_p = [x / 1E11 - BG_density for x in N_int_p]
+    N_int_std_p = [x / 1E11 for x in N_int_std_p]
+
+    N_int_p = [a for a, b in zip(N_int_p, Xpos_p) if 54.8 <= b <= 56]
+    N_int_std_p = [a for a, b in zip(N_int_std_p, Xpos_p) if 54.8 <= b <= 56]
+    Xpos_p = [x for x in Xpos_p if 54.8 <= x <= 56]
+
+    N_int_avg_.append(np.mean(N_int_p)/d)
+    N_int_avg_err_.append(np.mean(N_int_std_p)/d)
+
+
+z_ = [abs(x - 86.2) for x in Ypos_]
+z__ = np.arange(0, 4.2, 0.001)
+
+coef = np.polyfit(z_, N_int_avg_, 2)
+y_fit_N_ing_avg_ = np.polyval(coef, z__)
+
+print(N_int_avg_)
+
+
+ax.errorbar(z_, N_int_avg_, yerr=N_int_avg_err_, fmt="ks", ms=8, fillstyle="full", capsize=6, label="data points", zorder=2)
+ax.plot(z__, y_fit_N_ing_avg_, color="g", linestyle="solid", label="2$^{nd}$ order")
+
+ax.set_ylim(0, 2)
+ax.set_yticks([0, 1, 2], fontsize=fs)
+ax.set_yticks((0.5, 1.5), minor=True)
+ax.set_ylabel("[Ar$^*_2$]$_{avg}$ [10$^{11}$ molecules . cm$^{-3}$]", fontsize=fs)
+
+for axis in ['top','bottom','left','right']:
+    ax.spines[axis].set_linewidth(2)
+
+ax.set_xlim(-0.1, 4.4)
+ax.set_xticks([0,1,2,3,4], fontsize=fs)
+ax.set_xticks((0.5,1.5,2.5,3.5), minor=True)
+ax.set_xlabel("z [mm]", fontsize=fs)
+
+ax.tick_params(axis='both', which='major', labelsize=fs, direction="in", length=4, width=2, left=True, right=True, bottom=True, top=True)
+ax.tick_params(axis='both', which='minor', labelsize=fs, direction="in", length=2, width=2, left=True, right=True, bottom=True, top=True)
+
+
+handles, labels = ax.get_legend_handles_labels()
+order= [1,0]
+
+ax.legend([handles[idx] for idx in order],[labels[idx] for idx in order], loc='upper right', fontsize=fs, ncol=1, frameon=False)
+
+
+plt.show()
+#plt.savefig('M:\\PD_YAG-Dye_2.61\\Argon_excimer_CRDS\\Publication_1_apl\\figures\\figure4.eps', format='eps', bbox_inches='tight')
+
+save_to_path = "C:\\Users\\Nave\Desktop\\Nave\\"
+with open(save_to_path+"fig4.txt", 'w') as f:
+    for i in range(0,len(z_)):
+        f.write("{:6.2f}".format(z_[i]) + "\t" + "{:14.2e}".format(N_int_avg_[i]*1E11) + "\t" + "{:14.2e}".format(N_int_avg_err_[i]*1E11) + '\n')
