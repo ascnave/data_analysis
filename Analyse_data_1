@@ -1,0 +1,308 @@
+import matplotlib.pyplot as plt
+import numpy as np
+import sys, time
+from scipy.optimize import curve_fit
+from function import Lorentzian
+from Save_and_read import Read_data, Save_Aint, Read_Aint, Read_Aint_mix_ratio, Read_Aint_Ar_wet
+
+
+def Fit_poly_spectrum(x_, y_, numb_cursors, cursors_position, select_new_cursor, poly_degree):
+    # Check if numb_cursors is valid
+    if numb_cursors % 2 != 0 or numb_cursors == 0:
+        sys.exit('numb_cursors must be even and different form 0')
+
+    if type(y_) == np.array:
+        y_ = y_.tolist()
+
+    # Select manually new cursors
+    if select_new_cursor == True:
+        plt.ion()
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        spectrum, = ax.plot(x_, y_, 'b-')
+        plt.get_current_fig_manager().window.state('zoomed')
+        cursors_selected = plt.ginput(numb_cursors)
+
+        cursors = []
+        for i in range(0, len(cursors_selected)):
+            cursors.append((np.abs(x_ - cursors_selected[i][0])).argmin())
+
+        print('Index of new cursor position =>' + str(cursors))
+
+        cursors_position = cursors
+
+    # Fit polynome through selected range
+    sel_x_ = []
+    sel_y_ = []
+
+    i = 0
+    while i < len(cursors_position):
+        sel_x_ += x_[cursors_position[i]:cursors_position[i+1]]
+        sel_y_ += y_[cursors_position[i]:cursors_position[i+1]]
+        i += 2
+
+    coef = np.polyfit(sel_x_, sel_y_, poly_degree)
+    y_fit = np.polyval(coef, x_)
+
+    return(y_fit, cursors_position)
+
+
+def Avg_selected_range(x_, y_, cursors_position, select_new_cursor):
+    # Select manually new cursors
+    if select_new_cursor == True:
+        plt.ion()
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        spectrum, = ax.plot(x_, y_, 'b-')
+        plt.get_current_fig_manager().window.state('zoomed')
+        cursors_selected = plt.ginput(2)
+
+        cursors = []
+        for i in range(0, len(cursors_selected)):
+            cursors.append((np.abs(x_ - cursors_selected[i][0])).argmin())
+
+        print('Index of new cursor position =>' + str(cursors))
+
+        cursors_position = cursors
+
+    return(np.mean(y_[cursors_position[0]:cursors_position[1]]), cursors_position)
+
+
+""" Exctract integrated absorbance for Ar2 from a list of spectra in file """
+def Extract_Ar2_A_int(path_, files, show_fit, show_abs, wait_time, Save_to_file, save_to_path):
+
+    Xpos_ = []
+    Ypos_ = []
+    Aint_ = []
+
+    for file in files:
+        #Read and fit selected range to a selected polynome
+        Xpos, Ypos, x_, y_, std_, tau_, Plasma_Pk_Pk_ = Read_data(path_, file)
+        if x_[0] == 510.90015:
+            y_fit, cursors_position = Fit_poly_spectrum(x_, y_, numb_cursors=4, cursors_position=[0, 9, 23, 31],select_new_cursor=False, poly_degree=1)
+
+            # Show the fit and data points
+            if show_fit == True and file == files[0]:
+                plt.ion()
+                fig = plt.figure()
+                ax = fig.add_subplot(111)
+                data_points, = ax.plot(x_, y_, marker='o', label=file)
+                fit_, = ax.plot(x_, y_fit, '-r')
+                #text_ = ax.text(0.5, 1.05, s='X_position = ' + str(Xpos) + ', Y_position = ' + str(Ypos), size=32,
+                #                   horizontalalignment='center',verticalalignment='top', transform=ax.transAxes)
+                text_ = ax.text(0.5, 1.1, s='O2_flow = ' + str(O2_flow), size=32,
+                                horizontalalignment='center', verticalalignment='top', transform=ax.transAxes)
+                plt.get_current_fig_manager().window.state('zoomed')
+                fig.canvas.draw()
+                fig.canvas.flush_events()
+                time.sleep(wait_time)
+
+            elif show_fit == True and file != files[0]:
+                ax.set_ylim(np.min(y_), np.max(y_))
+                data_points.set_ydata(y_)
+                fit_.set_ydata(y_fit)
+                #text_.set_text('X_position = ' + str(Xpos) + ', Y_position = ' + str(Ypos))
+                fig.canvas.draw()
+                fig.canvas.flush_events()
+                time.sleep(wait_time)
+
+            # Calculate the spectrum in absorbance
+            y_fit = np.array(y_fit)
+            y_ = np.array(y_)
+            y_abs = 58*((1/(3E4*y_)-1/(3E4*y_fit)))
+
+            # Select and average a selected range 12,20
+            Aint, cursors_position = Avg_selected_range(x_, y_abs, cursors_position=[12,20], select_new_cursor=False)
+
+            # Show the spectra in absorbance
+            if show_fit != True and show_abs == True and file == files[0]:
+                plt.ion()
+                fig = plt.figure()
+                ax = fig.add_subplot(111)
+                Abs_, = ax.plot(x_, y_abs, marker='o', label=file)
+
+                ax.set_ylim(-0.2E-5, 1E-5)
+                ax.set_xlim(510.9, 517.7)
+                text_tau = ax.text(0.5, 1.05, s='A_int = ' + str(Aint) + ', X_position = ' + str(Xpos) + ', Y_position = ' + str(Ypos),
+                                   size=32,horizontalalignment='center', verticalalignment='top', transform=ax.transAxes)
+                plt.get_current_fig_manager().window.state('zoomed')
+                fig.canvas.draw()
+                fig.canvas.flush_events()
+                time.sleep(wait_time)
+
+            elif show_fit != True and show_abs == True and file != files[0]:
+                Abs_.set_ydata(y_abs)
+                text_tau.set_text('A_int = ' + str(Aint) + ', X_position = ' + str(Xpos) + ', Y_position = ' + str(Ypos))
+                fig.canvas.draw()
+                fig.canvas.flush_events()
+                time.sleep(wait_time)
+
+            if Save_to_file == True:
+                Save_Aint(file, Xpos, Ypos, Aint, save_to_path)
+
+            Xpos_.append(Xpos)
+            Ypos_.append(Ypos)
+            Aint_.append(Aint)
+
+    return(Xpos_, Ypos_, Aint_)
+
+
+""" Extract integrated absorbance from a list of spectra in file """
+def Show_spectra_Xpos(path_, files, show_Xpos):
+    for file in files:
+        #Read and fit selected range to a selected polynome
+        Xpos, Ypos, O2_flow, N2_flow, x_, y_, std_, tau_, Plasma_Pk_Pk_ = Read_data(path_, file)
+        if x_[0] == 510.90015:
+            y_fit, cursors_position = Fit_poly_spectrum(x_, y_, numb_cursors=4, cursors_position=[0, 9, 23, 31],select_new_cursor=False, poly_degree=1)
+
+            # Show the fit and data points
+            if Xpos in show_Xpos:
+                plt.plot(x_, y_, marker='o', label=file)
+                plt.plot(x_, y_fit, '-r')
+                for x in cursors_position:
+                    plt.vlines(x_[x], np.min(y_), np.max(y_), linewidth=2, color='red')
+                plt.title('X_position = ' + str(Xpos) + ', Y_position = ' + str(Ypos), size=12)
+                plt.xlabel("Wavelength [nm]")
+                plt.ylabel("Tau [us]")
+                plt.show()
+
+            # Calculate the spectrum in absorbance
+            y_fit = np.array(y_fit)
+            y_ = np.array(y_)
+            y_abs = 58*((1/(3E4*y_)-1/(3E4*y_fit)))
+
+            # Select and average a selected range
+            Aint, cursors_position = Avg_selected_range(x_, y_abs, cursors_position=[12,20], select_new_cursor=False)
+
+            # Show the spectra in absorbance
+            if Xpos in show_Xpos:
+                plt.plot(x_, y_abs, marker='o', label=file)
+                for x in cursors_position:
+                    plt.vlines(x_[x], np.min(y_abs), np.max(y_abs), linewidth=2, color='red')
+                plt.title('A_int = ' + str(Aint) + ', X_position = ' + str(Xpos) + ', Y_position = ' + str(Ypos), size=12)
+                plt.xlabel("Wavelength [nm]")
+                plt.ylabel("Absorbance")
+                plt.show()
+
+""" Obtain Ar2 integrated densities for a given Ypos and cross-section reading file in path_"""
+def Ar2_N_int(Ypos, cross_section, path_):
+    filename_, Xpos_, Ypos_, Aint_ = Read_Aint(Ypos, path_)
+
+    Xpos__ = []
+    N_int_ = []
+    N_int_std_ = []
+
+    for Xpos in Xpos_:
+        if Xpos not in Xpos__:
+            N_int__ = [Aint_[i]/cross_section for i, j in enumerate(Xpos_) if j == Xpos]
+
+            Xpos__.append(Xpos)
+            N_int_.append(np.mean(N_int__))
+            N_int_std_.append(np.std(N_int__))
+
+    sorted_tuple = sorted(zip(Xpos__, N_int_, N_int_std_))
+
+    Xpos_sorted = [x for x, _, _ in sorted_tuple]
+    N_int_sorted = [x for _, x, _ in sorted_tuple]
+    N_int_std_sorted = [x for _, _, x in sorted_tuple]
+
+    return(Xpos_sorted, N_int_sorted, N_int_std_sorted)
+
+""" Obtain Ar2 integrated densities for a given xpos and Ypos and cross-section reading file in path_"""
+def Ar2_N_int_mix_ratio(Ypos, Xpos, cross_section, path_):
+    filename_, Xpos_, Ypos_, O2_flow_, N2_flow_, Aint_ = Read_Aint_mix_ratio(Ypos, Xpos, path_)
+
+    O2_flow__ = []
+    N_int_ = []
+    N_int_std_ = []
+
+    for O2_flow in O2_flow_:
+        if O2_flow not in O2_flow__:
+            N_int__ = [Aint_[i]/cross_section for i, j in enumerate(O2_flow_) if j == O2_flow]
+
+            O2_flow__.append(O2_flow)
+            N_int_.append(np.mean(N_int__))
+            N_int_std_.append(np.std(N_int__))
+
+    sorted_tuple = sorted(zip(O2_flow__, N_int_, N_int_std_))
+
+    O2_flow_sorted = [x for x, _, _ in sorted_tuple]
+    N_int_sorted = [x for _, x, _ in sorted_tuple]
+    N_int_std_sorted = [x for _, _, x in sorted_tuple]
+
+    return(O2_flow_sorted, N_int_sorted, N_int_std_sorted)
+
+
+""" Obtain Ar2 integrated densities for a given xpos and Ypos and cross-section reading file in path_"""
+def Ar2_N_int_Ar_wet(Ar_wet, cross_section, path_):
+    filename_, Xpos_, Ypos_, Ar_wet_, Aint_ = Read_Aint_Ar_wet(Ar_wet, path_)
+
+    Ypos__ = []
+    N_int_ = []
+    N_int_std_ = []
+
+    for Ypos in Ypos_:
+        if Ypos not in Ypos__:
+            N_int__ = [Aint_[i]/cross_section for i, j in enumerate(Ypos_) if j == Ypos]
+
+            Ypos__.append(Ypos)
+            N_int_.append(np.mean(N_int__))
+            N_int_std_.append(np.std(N_int__))
+
+    sorted_tuple = sorted(zip(Ypos__, N_int_, N_int_std_))
+
+    Ypos_sorted = [x for x, _, _ in sorted_tuple]
+    N_int_sorted = [x for _, x, _ in sorted_tuple]
+    N_int_std_sorted = [x for _, _, x in sorted_tuple]
+
+    return(Ypos_sorted, N_int_sorted, N_int_std_sorted)
+
+"""
+Return a refine array of tau_ by iteratively removing value out of the standard deviation
+Two method are possible whether by setting the percentage of data or of STD/mean
+Choose the method to select data by typing 'data' or 'std'
+"""
+def Select_data(tau_, percentage_data, percentage_std, method, display_selection):
+    if display_selection == True:
+        print('Number of point in tau_ ' + str(len(tau_)))
+        print('std = ' + str(np.around(np.std(tau_), decimals=5)) + ' us')
+        print('tau = ' + str(np.around(np.mean(tau_), decimals=5)) + ' us')
+
+        plt.hist(tau_, bins = 50)
+        plt.get_current_fig_manager().window.state('zoomed')
+        plt.show()
+
+    std_ = 3
+    refine_tau = [x for x in tau_ if(np.mean(tau_) - std_ * np.std(tau_)) < x < (np.mean(tau_) + std_ * np.std(tau_))]
+
+    if method == 'std':
+        while np.std(refine_tau)/np.mean(refine_tau)*100 > percentage_std:
+            STD = np.std(refine_tau)
+            AVG = np.mean(refine_tau)
+            check = len(refine_tau)
+            refine_tau = [x for x in refine_tau if (AVG - std_ * STD) < x < (AVG + std_ * STD)]
+            if check == len(refine_tau):
+                std_ -= 0.1
+    elif method == 'data':
+        while len(refine_tau) / len(tau_) * 100 > percentage_data:
+            STD = np.std(refine_tau)
+            AVG = np.mean(refine_tau)
+            check = len(refine_tau)
+            refine_tau = [x for x in refine_tau if (AVG - std_ * STD) < x < (AVG + std_ * STD)]
+            if check == len(refine_tau):
+                std_ -= 0.1
+    else:
+        print('No method was selected, enter data or std under method')
+
+
+    if display_selection == True:
+        print('Number of tau values left ' + str(len(refine_tau)))
+        print('Percentage of data left ' + str(len(refine_tau)/len(tau_)*100) + ' % to reach ' + str(np.std(refine_tau)/np.mean(refine_tau)*100) + ' % of STD/mean' )
+        print('std = ' + str(np.around(np.std(refine_tau), decimals=5)) + ' us')
+        print('tau = ' + str(np.around(np.mean(refine_tau), decimals=5)) + ' us')
+
+        plt.hist(refine_tau, bins = 50)
+        plt.get_current_fig_manager().window.state('zoomed')
+        plt.show()
+
+    return (np.mean(refine_tau), np.std(refine_tau), refine_tau)
