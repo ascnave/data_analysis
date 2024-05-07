@@ -1,0 +1,91 @@
+import numpy as np
+import scipy.integrate as integrate
+
+
+""" Convolution of a Gaussian with a rectangular function. The gaussian corresponds to the laser beam and 
+the rectangular function to the distribution of Ar2 in the kinpen effluent"""
+def gaussian_rectangular_convolution(x_, amp_rect, start_rect, end_rect):
+    width = 0.2719
+    y_ = []
+    for x in x_:
+        y_.append((amp_rect/(width*np.sqrt(np.pi/2)))*integrate.quad(Gaussian, start_rect, end_rect, args=(x,width))[0])
+    return(y_)
+
+def Gaussian(x_, x0, w):
+    return (np.exp(-2*(x_ - x0)**2/(w**2)))
+
+""" A is the area """
+def Lorentzian(x, x0, A, y0):
+    gam = 0.14
+    return y0 + 2*A*gam / (np.pi*(4*( x - x0 )**2 + gam**2))
+
+""" Atomic Argon 4p state"""
+def Atomic_4p(x, x1, x2, A, gam, y0):
+    return y0 + 2*0.82*A*gam / (np.pi*(4*( x - x1 )**2 + gam**2)) + 2*A*gam / (np.pi*(4*( x - x2 )**2 + gam**2))
+
+def exp_fit(x_, a, b):
+    return (a*np.exp(b*x_))
+
+def polynome(x_, a, b):
+    degree=4
+    return (a+b*x_**degree)
+
+def freq_mode(n, L, r):
+    freq_mode_ = np.eye(n,n)
+
+    a1 = 2.998E8/(2*L)
+    a2 = np.arccos(np.sqrt((1 - L/r) ** 2))/np.pi
+
+    for i in range(0, n, 1):
+        for j in range(0, n, 1):
+            freq_mode_[i,j] = a1*(i+((j+1)*a2))
+
+    return freq_mode_
+
+"""give length and wavelength in cm to retrive value in cm """
+def width_TEM00(length, wl, g):
+    value = np.sqrt(length*wl/np.pi)*((1+g)/(4*(1-g)))**0.25
+    return('TEM00 size at the waist '+ str(value)+ ' cm')
+
+def distance_through_circle(x_, radius):
+    y_ci = [2*np.sqrt(radius**2-x**2) for x in x_]
+    return(y_ci)
+
+def distance_through_toroid(x_, r_1, w_t):
+
+    if isinstance(x_, int) or isinstance(x_, float):
+        x_ = [x_]
+
+    r_2 = r_1 - w_t
+    y_ = []
+
+    for x in x_:
+        if -r_2 < x < r_2:
+            y_.append(2 * np.sqrt(r_1 ** 2 - x ** 2) - 2 * np.sqrt(r_2 ** 2 - x ** 2))
+        elif -r_1 < x < r_1:
+            y_.append(2 * np.sqrt(r_1 ** 2 - x ** 2))
+        else:
+            y_.append(0)
+
+    return(np.array(y_))
+
+
+def Ar2_radial_profile(x_, N_t, r_1, w_t, N_ar2, x_ar2, w_ar2, offset):
+
+    if isinstance(x_, int) or isinstance(x_, float):
+        x_ = [x_]
+
+    x_ = [x - offset for x in x_]
+    return (N_t*distance_through_toroid(x_, r_1, w_t) + N_ar2*Gaussian(x_, x_ar2, w_ar2))
+
+
+def func(x__, x0, w, x_, N_t, r_1, w_t, N_ar2, x_ar2, w_ar2, offset):
+    return(Gaussian(x__, x0, w)*Ar2_radial_profile(x_, N_t, r_1, w_t, N_ar2, x_ar2, w_ar2, offset))
+
+def Ar2_radial_profile_convolution(x_, N_t, r_1, w_t, N_ar2, x_ar2, w_ar2, offset):
+    w= 0.2719
+    y_=[]
+    for x0 in x_:
+        y_.append((1/(w*np.sqrt(np.pi/2)))*integrate.quad(func, -np.inf , +np.inf , args=(x0, w, x0, N_t, r_1, w_t, N_ar2, x_ar2, w_ar2, offset))[0])
+
+    return(y_)
